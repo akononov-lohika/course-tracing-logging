@@ -4,6 +4,7 @@ import com.course.bff.books.models.Book;
 import com.course.bff.books.requests.CreateBookCommand;
 import com.course.bff.books.responses.AuthorResponse;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.Dsl;
@@ -15,7 +16,11 @@ import org.asynchttpclient.util.HttpConstants;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-
+import org.springframework.data.redis.core.RedisTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cloud.sleuth.annotation.NewSpan;
+import com.course.bff.books.responses.BookResponse;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -24,14 +29,21 @@ import java.util.concurrent.ExecutionException;
 
 @Component
 public class BookService {
+    private final static Logger logger = LoggerFactory.getLogger(BookService.class);
     @Value("${authorService}")
     private String authorService;
 
-    private final ArrayList<Book> books;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    public BookService() {
+    @Value("${redis.topic}")
+    private String redisTopic;
+
+    public BookService(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
         books = new ArrayList<>();
     }
+
+    private final ArrayList<Book> books;
 
     public Collection<Book> getBooks() {
         return this.books;
@@ -43,7 +55,7 @@ public class BookService {
 
     public Book create(CreateBookCommand createBookCommand) {
         Optional<AuthorResponse> authorSearch = getAutor(createBookCommand.getAuthorId());
-        if (authorSearch.isEmpty()) {
+        if (!authorSearch.isPresent()) {
             throw new RuntimeException("Author isn't found");
         }
 
@@ -77,6 +89,16 @@ public class BookService {
 
         } catch (InterruptedException | ExecutionException e) {
             return Optional.empty();
+        }
+    }
+
+    @NewSpan
+    public void sendPushNotification(BookResponse bookResponse) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        try {
+            redisTemplate.convertAndSend(redisTopic, gson.toJson(bookResponse));
+        } catch (Exception e) {
+            logger.error("Push Notification Error", e);
         }
     }
 }

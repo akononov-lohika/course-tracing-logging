@@ -64,7 +64,7 @@ public class AuthorController {
     public AuthorResponse getById(@PathVariable UUID id) {
         logger.info(String.format("Find authors by %s", id));
         Optional<Author> authorSearch = this.authorService.findById(id);
-        if (authorSearch.isEmpty()) {
+        if (!authorSearch.isPresent()) {
             throw new RuntimeException("Author isn't found");
         }
 
