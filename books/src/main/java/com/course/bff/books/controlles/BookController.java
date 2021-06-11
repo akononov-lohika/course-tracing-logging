@@ -50,8 +50,8 @@ public class BookController {
             BookResponse bookResponse = createBookResponse(book);
             bookResponses.add(bookResponse);
         });
-        throw new RuntimeException("test exception");
-        //return bookResponses;
+        //throw new RuntimeException("test exception");
+        return bookResponses;
     }
 
     @GetMapping("/{id}")

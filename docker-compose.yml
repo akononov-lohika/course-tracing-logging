@@ -7,6 +7,8 @@ services:
       - 8081:8081
     networks:
       - mynet
+    volumes:
+        - E:\Work_doc\tracing_log\course-tracing-logging\logs:/var/log/application
   books:
     image: estoyanov/bff-books-service:1.0
     container_name: bff-books-service
@@ -14,6 +16,9 @@ services:
       - 8082:8082
     networks:
       - mynet
+    volumes:
+      - /var/log/application
+
   web-sockets:
     image: estoyanov/bff-web-sockets-service:1.0
     container_name: bff-web-sockets-service
@@ -44,6 +49,47 @@ services:
       - 9411:9411
     networks:
       - mynet
+
+  es:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.1
+    container_name: es
+    environment:
+       discovery.type: single-node
+       ES_JAVA_OPT: -Xms512m -Xmx512m
+    volumes:
+      - data01:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - mynet
+
+  kibana:
+    image: "docker.elastic.co/kibana/kibana:7.13.1"
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_URL: http://es:9200
+      ELASTICSEARCH_HOSTS: '["http://es:9200"]'
+    networks:
+      - mynet
+
+  filebeat:
+    image: "docker.elastic.co/beats/filebeat:7.13.1"
+    container_name: filebeat
+    user: root
+    volumes:
+      - E:/Work_doc/tracing_log/course-tracing-logging/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["--strict.perms=false"]
+    networks:
+      - mynet
+
   
 networks:
   mynet:
+
+volumes:
+  data01:
+    driver: local
